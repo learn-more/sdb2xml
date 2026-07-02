@@ -141,7 +141,7 @@ ALL_TAGS_RESULT = """{
               "tag": "RUNTIME_PLATFORM",
               "type": "dword",
               "value": "34",
-              "comment": "AMD64 | 0x20"
+              "comment": "AMD64 | X86_ON_ARM64"
             }
           ]
         },
