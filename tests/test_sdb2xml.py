@@ -44,7 +44,7 @@ ALL_TAGS_RESULT = """<?xml version="1.0" encoding="utf-8" standalone="yes"?>
       <INDEX_KEY type="xs:unsignedShort">14339<!-- INDEX_KEY --></INDEX_KEY>
       <INDEX_FLAGS type="xs:unsignedInt">3<!-- SHIMDB_INDEX_UNIQUE_KEY | SHIMDB_INDEX_TRAILING_CHARACTERS --></INDEX_FLAGS>
       <GUEST_TARGET_PLATFORM type="xs:unsignedInt">17<!-- X86 | ARM64 --></GUEST_TARGET_PLATFORM>
-      <RUNTIME_PLATFORM type="xs:unsignedInt">34<!-- AMD64 | 0x20 --></RUNTIME_PLATFORM>
+      <RUNTIME_PLATFORM type="xs:unsignedInt">34<!-- AMD64 | X86_ON_ARM64 --></RUNTIME_PLATFORM>
     </LIBRARY>
     <PATCH>
       <APP>

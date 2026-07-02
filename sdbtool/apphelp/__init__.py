@@ -52,10 +52,32 @@ class TagType(IntEnum):
     MASK = 0xF000  # TAG_TYPE_MASK
 
 
-class PlatformType(IntFlag):
-    X86 = 0x1
-    AMD64 = 0x2
+class RuntimePlatformType(IntFlag):
+    """Bit vocabulary of the RUNTIME_PLATFORM (0x4021) tag.
+
+    One bit per (guest architecture, host architecture) pair the database applies to.
+    """
+
+    X86 = 0x1  # x86 on x86
+    AMD64 = 0x2  # amd64 on amd64
     X86_ON_AMD64 = 0x4
+    ARM = 0x8  # arm on arm
+    ARM64 = 0x10  # arm64 on arm64
+    X86_ON_ARM64 = 0x20
+    ARM_ON_ARM64 = 0x40
+    AMD64_ON_ARM64 = 0x80
+
+
+class GuestPlatformType(IntFlag):
+    """Bit vocabulary of the GUEST_TARGET_PLATFORM (0x4023) tag.
+
+    One bit per guest architecture. The same encoding is used across every Windows version (the tag was called OS_PLATFORM before Win10).
+    Every shipped x64 sysmain.sdb carries 0x4, x86 ones 0x1.
+    """
+
+    X86 = 0x1
+    IA64 = 0x2
+    AMD64 = 0x4
     ARM = 0x8
     ARM64 = 0x10
 
@@ -71,10 +93,9 @@ _PAREN_SUFFIX = re.compile(r"\s*\([^)]*\)\s*$")
 def normalize_tag_name(name: str) -> str:
     """Clean a raw Windows tag name into an identifier-ish form.
 
-    apphelp's ``SdbTagToString`` returns display strings for some older tags
-    (e.g. ``"MSI TRANSFORM"``, ``"EXE_ID(GUID)"``). Drop a trailing parenthesised
-    suffix and turn spaces into underscores. Shared by the JSON and XML output and
-    by the GUID-comment heuristic.
+    apphelp's ``SdbTagToString`` returns display strings for some older tags (e.g. ``"MSI TRANSFORM"``, ``"EXE_ID(GUID)"``).
+    Drop a trailing parenthesised suffix and turn spaces into underscores.
+    Shared by the JSON and XML output and by the GUID-comment heuristic.
     """
     # Almost every name is already clean; skip the regex on the hot path.
     if "(" not in name and " " not in name:
@@ -85,9 +106,8 @@ def normalize_tag_name(name: str) -> str:
 def xml_tag_name(name: str) -> str:
     """Normalized name usable as an XML element name.
 
-    Like :func:`normalize_tag_name` but also guards a leading digit, which is
-    invalid for an XML Name (``16BIT_DESCRIPTION`` -> ``S16BIT_DESCRIPTION``, the
-    form XP/2003 apphelp itself uses).
+    Like :func:`normalize_tag_name` but also guards a leading digit,
+    which is invalid for an XML Name (``16BIT_DESCRIPTION`` -> ``S16BIT_DESCRIPTION``, the form XP/2003 apphelp itself uses).
     """
     name = normalize_tag_name(name)
     return "S" + name if name[:1].isdigit() else name
@@ -96,12 +116,10 @@ def xml_tag_name(name: str) -> str:
 def is_excluded(name: str, exclude_tags) -> bool:
     """Whether a tag ``name`` is excluded.
 
-    Matches the raw Windows name as well as its normalized (JSON) and XML-safe
-    forms, so ``--exclude MSI_TRANSFORM`` (the name seen in output) works even when
-    the raw name for an older target is ``"MSI TRANSFORM"``.
+    Matches the raw Windows name as well as its normalized (JSON) and XML-safe forms,
+    so ``--exclude MSI_TRANSFORM`` (the name seen in output) works even when the raw name for an older target is ``"MSI TRANSFORM"``.
 
-    Unknown tags are named ``InvalidTag_0x….`` per tag id, so excluding the bare
-    token ``"InvalidTag"`` matches every unknown tag by prefix.
+    Unknown tags are named ``InvalidTag_0x….`` per tag id, so excluding the bare token ``"InvalidTag"`` matches every unknown tag by prefix.
     """
     if not exclude_tags:  # the common case: nothing excluded
         return False
@@ -139,9 +157,11 @@ def tag_value_to_string(tag: "Tag") -> tuple[str, str | None]:
         comment = None
         if tag.tag in (Tags.INDEX_FLAGS,):
             comment = _value_to_flags(value, IndexFlags)
-        elif tag.tag in (Tags.GUEST_TARGET_PLATFORM, Tags.RUNTIME_PLATFORM):
-            # GUEST_TARGET_PLATFORM is known as TAG_OS_PLATFORM in older versions
-            comment = _value_to_flags(value, PlatformType)
+        elif tag.tag == Tags.RUNTIME_PLATFORM:
+            comment = _value_to_flags(value, RuntimePlatformType)
+        elif tag.tag == Tags.GUEST_TARGET_PLATFORM:
+            # Known as TAG_OS_PLATFORM in older versions; same encoding either way.
+            comment = _value_to_flags(value, GuestPlatformType)
         elif (
             tag.tag in (Tags.LINK_DATE, Tags.UPTO_LINK_DATE, Tags.FROM_LINK_DATE)
             and value != 0

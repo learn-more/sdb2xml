@@ -16,7 +16,11 @@ _DB_INFO_FLAGS_BASE = 0x10000000
 
 _TAG_DATABASE = 0x7001
 _TAG_RUNTIME_PLATFORM = 0x4021
-_PLATFORM_MASK = 0x1F  # X86 | AMD64 | X86_ON_AMD64 | ARM | ARM64
+_TAG_GUEST_TARGET_PLATFORM = 0x4023
+
+# How an amd64 host maps a GUEST_TARGET_PLATFORM bit (guest architecture) to a RUNTIME_PLATFORM bit (guest-on-host pair):
+# an x86 guest runs as X86_ON_AMD64 (0x4), an amd64 guest natively (0x2); IA64/ARM/ARM64 guests are unsupported.
+_GUEST_TO_AMD64_HOST = {0x1: 0x4, 0x4: 0x2}
 
 
 @dataclass
@@ -32,21 +36,31 @@ class DatabaseInformation:
 
 
 def _runtime_platform(pdb: sdb_reader.SdbFile) -> int:
-    """Reproduce the dwRuntimePlatform value reported by apphelp.dll.
+    """Reproduce the dwRuntimePlatform value reported by apphelp.dll on an amd64 host.
 
-    Windows derives this from the DATABASE's RUNTIME_PLATFORM tag, reporting the
-    most significant platform bit (e.g. 0x25 -> 4, 0x82 -> 2), and defaults to 4
-    (X86_ON_AMD64) when the tag is absent.
+    For a version-3 database with a RUNTIME_PLATFORM tag Windows reports that tag's value unmodified.
+    Otherwise (version-2 database, or tag absent) it reads GUEST_TARGET_PLATFORM - defaulting to 0x1,
+    an x86 guest - and maps each guest bit to the pair bit for the current host,
+    so an amd64 host reports e.g. guest 0x1 -> 4 (X86_ON_AMD64) and guest 0x4 -> 2 (AMD64).
     """
     root = sdb_reader.SdbFindFirstTag(pdb, sdb_reader.TAGID_ROOT, _TAG_DATABASE)
-    bits = 0
-    if root != sdb_reader.TAGID_NULL:
-        tag = sdb_reader.SdbFindFirstTag(pdb, root, _TAG_RUNTIME_PLATFORM)
+    if root == sdb_reader.TAGID_NULL:
+        guest = 0x1
+    else:
+        if pdb.major != 2:
+            tag = sdb_reader.SdbFindFirstTag(pdb, root, _TAG_RUNTIME_PLATFORM)
+            if tag != sdb_reader.TAGID_NULL:
+                return sdb_reader.SdbReadDWORDTag(pdb, tag)
+        tag = sdb_reader.SdbFindFirstTag(pdb, root, _TAG_GUEST_TARGET_PLATFORM)
         if tag != sdb_reader.TAGID_NULL:
-            bits = sdb_reader.SdbReadDWORDTag(pdb, tag) & _PLATFORM_MASK
-    if not bits:
-        return 4
-    return 1 << (bits.bit_length() - 1)
+            guest = sdb_reader.SdbReadDWORDTag(pdb, tag)
+        else:
+            guest = 0x1
+    platform = 0
+    for guest_bit, host_bit in _GUEST_TO_AMD64_HOST.items():
+        if guest & guest_bit:
+            platform |= host_bit
+    return platform
 
 
 def get_info(file_name: str | os.PathLike) -> DatabaseInformation:

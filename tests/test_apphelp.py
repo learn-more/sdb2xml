@@ -10,11 +10,14 @@ from sdbtool.apphelp import (
     SdbDatabase,
     PathType,
     Tag,
+    GuestPlatformType,
+    RuntimePlatformType,
     tag_value_to_string,
     tag_id_to_string,
     is_excluded,
     normalize_tag_name,
     xml_tag_name,
+    _value_to_flags,
 )
 from sdbtool.apphelp.tags import KNOWN_VERSIONS, DEFAULT_VERSION
 import pytest
@@ -153,6 +156,29 @@ def test_tag_id_to_string_version_aware():
 
     # Unknown everywhere -> hex-preserving fallback; an unknown os falls back to newest.
     assert tag_id_to_string(0x1234, "bogus") == "InvalidTag_0x1234"
+
+
+def test_platform_flag_vocabularies():
+    # RUNTIME_PLATFORM (0x4021) uses one bit per (guest, host) architecture pair; GUEST_TARGET_PLATFORM / OS_PLATFORM (0x4023) uses one bit per guest arch.
+    assert RuntimePlatformType.X86_ON_AMD64 == 0x4
+    assert RuntimePlatformType.X86_ON_ARM64 == 0x20
+    assert RuntimePlatformType.ARM_ON_ARM64 == 0x40
+    assert RuntimePlatformType.AMD64_ON_ARM64 == 0x80
+    assert GuestPlatformType.IA64 == 0x2  # legacy amd64/x86 dbs use this axis
+    assert GuestPlatformType.AMD64 == 0x4
+
+    # The two enums decode the same raw value differently: 0x4 is X86_ON_AMD64 for a RUNTIME_PLATFORM tag but AMD64 for a GUEST_TARGET_PLATFORM tag.
+    assert _value_to_flags(0x4, RuntimePlatformType) == "X86_ON_AMD64"
+    assert _value_to_flags(0x4, GuestPlatformType) == "AMD64"
+
+    # DirectXApps_FOD ships RUNTIME_PLATFORM 0xFF (all eight pair bits set).
+    assert (
+        _value_to_flags(0xFF, RuntimePlatformType)
+        == "X86 | AMD64 | X86_ON_AMD64 | ARM | ARM64 | X86_ON_ARM64 | "
+        "ARM_ON_ARM64 | AMD64_ON_ARM64"
+    )
+    # Bits with no name are still preserved as hex (0x100 is undefined).
+    assert _value_to_flags(0x102, RuntimePlatformType) == "AMD64 | 0x100"
 
 
 def test_is_excluded_matches_unknown_by_prefix():
