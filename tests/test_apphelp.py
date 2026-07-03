@@ -12,15 +12,22 @@ from sdbtool.apphelp import (
     Tag,
     GuestPlatformType,
     RuntimePlatformType,
+    RuntimePlatformV2Type,
     tag_value_to_string,
     tag_id_to_string,
     is_excluded,
     normalize_tag_name,
     xml_tag_name,
     _value_to_flags,
+    _v2_runtime_platform_to_string,
 )
+from sdbtool.apphelp import TagType
 from sdbtool.apphelp.tags import KNOWN_VERSIONS, DEFAULT_VERSION
+from sdbtool.apphelp.tags import WellKnownTags
+from pathlib import Path
 import pytest
+
+TESTDATA_FOLDER = Path(__file__).parent / "data"
 
 
 def test_read_wrong_types():
@@ -179,6 +186,71 @@ def test_platform_flag_vocabularies():
     )
     # Bits with no name are still preserved as hex (0x100 is undefined).
     assert _value_to_flags(0x102, RuntimePlatformType) == "AMD64 | 0x100"
+
+
+def test_v2_runtime_platform_decode():
+    # Version-2 (Vista..8.1) 0x4021 is a little-endian list of selector bytes, NOT the v3 pair bitmask.
+    # A selector byte is 0x40 | code (code = byte & 0x3F)
+    assert RuntimePlatformV2Type.X86 == 0
+    assert RuntimePlatformV2Type.AMD64 == 9
+    assert RuntimePlatformV2Type.WOW64 == 12
+    assert RuntimePlatformV2Type.NATIVE64 == 13
+
+    # Real corpus values (0601-sp1 sysmain.sdb).
+    assert _v2_runtime_platform_to_string(0x4C40) == "X86 | WOW64"  # 32-bit db majority
+    assert _v2_runtime_platform_to_string(0x4D4C40) == "X86 | WOW64 | NATIVE64"
+    assert _v2_runtime_platform_to_string(0x4C4D40) == "X86 | NATIVE64 | WOW64"
+    assert _v2_runtime_platform_to_string(0x49) == "AMD64"
+    assert _v2_runtime_platform_to_string(0x40) == "X86"
+    assert _v2_runtime_platform_to_string(0x4C) == "WOW64"
+    assert _v2_runtime_platform_to_string(0x4D) == "NATIVE64"
+
+    # apphelp's read-default for an absent tag: no platform constraint.
+    assert _v2_runtime_platform_to_string(0xC0000000) == "ANY"
+    # Top bit negates the whole match; only bytes 0..2 hold selectors.
+    assert _v2_runtime_platform_to_string(0x80000040) == "NOT (X86)"
+    # A selector code with no name is preserved (0x4E -> code 14).
+    assert _v2_runtime_platform_to_string(0x4E) == "code14"
+    # A byte without the 0x40 marker contributes nothing.
+    assert _v2_runtime_platform_to_string(0x09) == "0x0"
+
+
+def test_sdb_major_from_header(tmp_path):
+    # major comes straight from the open reader handle (validated to 2 or 3).
+    # Real corpus: app_x64 is a version-2 db, all_tagtypes is version-3.
+    assert SdbDatabase(TESTDATA_FOLDER / "app_x64.sdb").major == 2
+    assert SdbDatabase(TESTDATA_FOLDER / "all_tagtypes.sdb").major == 3
+    # A database that fails to open (missing file) has no handle -> None.
+    assert SdbDatabase(TESTDATA_FOLDER / "nonexistent.sdb").major is None
+    # An existing file that is not a valid SDB also fails to open -> None.
+    not_sdb = tmp_path / "notdb.bin"
+    not_sdb.write_bytes(b"not a database at all")
+    assert SdbDatabase(not_sdb).major is None
+
+
+def _runtime_platform_comment(major, value):
+    class FakeDb:
+        pass
+
+    class FakeDwordTag:
+        type = TagType.DWORD
+        tag = WellKnownTags.RUNTIME_PLATFORM
+        db = FakeDb()
+
+        def read_dword(self):
+            return value
+
+    FakeDb.major = major
+    return tag_value_to_string(FakeDwordTag())
+
+
+def test_runtime_platform_dispatch_by_major():
+    # Version-2 db routes 0x4021 through the selector-byte decoder.
+    assert _runtime_platform_comment(2, 0x4C40) == ("19520", "X86 | WOW64")
+    # Version-3 db uses the (guest, host) pair bitmask.
+    assert _runtime_platform_comment(3, 0x6) == ("6", "AMD64 | X86_ON_AMD64")
+    # Unknown header version -> no comment rather than a wrong-scheme decode.
+    assert _runtime_platform_comment(None, 0x4C40) == ("19520", None)
 
 
 def test_is_excluded_matches_unknown_by_prefix():

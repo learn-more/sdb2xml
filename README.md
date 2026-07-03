@@ -77,6 +77,15 @@ Tag names are not constant across Windows versions: some are renamed (e.g. `OS_P
 `sdb2xml` / `sdb2json` therefore accept `--target-os <VERSION>` to resolve names as of a particular Windows release; without it, names are resolved against the newest known table.
 An unknown tag is rendered as `InvalidTag_0xXXXX`.
 
+### RUNTIME_PLATFORM (0x4021)
+
+The tag id `0x4021` has two unrelated encodings depending on the database version:
+
+- **Version 3** (Windows 10+): one DB-level tag holding a `(guest, host)` architecture **pair bitmask** (`RuntimePlatformType`, e.g. `AMD64 | X86_ON_AMD64`).
+- **Version 2** (Vista..Windows 8.1): a **per-entry** tag holding a little-endian list of up to three host-platform selector bytes (`0x40 | code`), OR-combined, with bit `0x80000000` negating the match (`RuntimePlatformV2Type`). Codes: `0`=X86, `9`=AMD64, `6`=IA64, `12`=WOW64 (any 32-bit-on-64-bit), `13`=NATIVE64 (any native 64-bit). Reversed from `SdbpCheckRuntimePlatform` in pre-Win10 `apphelp.dll`; e.g. `0x4D4C40` -> `X86 | WOW64 | NATIVE64`.
+
+sdbtool decodes each form according to the file's header major version.
+
 
 ## Contributing<a id="contributing"></a>
 

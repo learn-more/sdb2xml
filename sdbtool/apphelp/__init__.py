@@ -83,6 +83,24 @@ class GuestPlatformType(IntFlag):
     ARM64 = 0x10
 
 
+class RuntimePlatformV2Type(IntEnum):
+    """Selector codes inside a version-2 RUNTIME_PLATFORM (0x4021) tag.
+
+    Version-2 databases (Vista..Windows 8.1) do NOT encode 0x4021 as the (guest, host) pair bitmask that version-3 uses.
+    Pre-Win10 apphelp reads the per-entry tag as a little-endian array of up to three selector bytes (only bytes 0..2 are scanned);
+    the top bit (0x80000000) negates the whole match.
+    A byte is a selector when bit 0x40 is set; its low 6 bits (``& 0x3F``) are one of the codes below, OR-combined and matched against the running host.
+    """
+
+    X86 = 0  # native x86 host (PROCESSOR_ARCHITECTURE_INTEL)
+    IA64 = 6
+    AMD64 = 9  # native amd64 host
+    WOW_IA32 = 10  # raw ctx arch of a WOW64 process (IA32_ON_WIN64)
+    WOW_X86_ON_IA64 = 11
+    WOW64 = 12  # any 32-bit process on a 64-bit OS (matches ctx arch 10/11)
+    NATIVE64 = 13  # any native 64-bit process (matches ctx arch 6/9)
+
+
 def get_tag_type(tag: int) -> TagType:
     """Extracts the type from a tag."""
     return TagType(tag & TagType.MASK)
@@ -141,6 +159,26 @@ def _value_to_flags(value: int, flags: type[IntFlag]) -> str:
     return " | ".join(values) if values else "0x0"
 
 
+def _v2_runtime_platform_to_string(value: int) -> str:
+    """Decode a version-2 RUNTIME_PLATFORM (0x4021) value; see RuntimePlatformV2Type.
+
+    0xC0000000 is the read-default apphelp substitutes for an absent tag and means "no platform constraint". Only bytes 0..2 carry selectors; bit 0x80000000 negates.
+    """
+    if value == 0xC0000000:
+        return "ANY"
+    names = []
+    for shift in (0, 8, 16):
+        byte = (value >> shift) & 0xFF
+        if byte & 0x40:
+            code = byte & 0x3F
+            try:
+                names.append(RuntimePlatformV2Type(code).name)
+            except ValueError:
+                names.append(f"code{code}")
+    text = " | ".join(names) if names else "0x0"
+    return f"NOT ({text})" if value & 0x80000000 else text
+
+
 def tag_value_to_string(tag: "Tag") -> tuple[str, str | None]:
     if tag.type == TagType.BYTE:
         return f"{tag.read_byte()}", None
@@ -156,11 +194,15 @@ def tag_value_to_string(tag: "Tag") -> tuple[str, str | None]:
         comment = None
         if tag.tag in (Tags.INDEX_FLAGS,):
             comment = _value_to_flags(value, IndexFlags)
-        elif tag.tag == Tags.RUNTIME_PLATFORM and tag.db.major == 3:
-            # Only version-3 (Win10+) databases encode 0x4021 as a (guest,host)
-            # architecture bitmask. In version-2 databases the per-EXE 0x4021 tag
-            # holds something else, so decoding it as arch flags is meaningless.
-            comment = _value_to_flags(value, RuntimePlatformType)
+        elif tag.tag == Tags.RUNTIME_PLATFORM:
+            # 0x4021 has two entirely different encodings:
+            # Version-3 (Win10+) databases carry it once at DB level as a (guest,host) architecture pair bitmask.
+            # Version-2 (Vista..8.1) databases carry it per-entry as a little-endian list of host-platform selector bytes (see RuntimePlatformV2Type). Same tag id, unrelated meanings.
+            # Dispatch on the exact header version; if it can't be determined, emit no comment rather than decode with the wrong scheme.
+            if tag.db.major == 3:
+                comment = _value_to_flags(value, RuntimePlatformType)
+            elif tag.db.major == 2:
+                comment = _v2_runtime_platform_to_string(value)
         elif tag.tag == Tags.GUEST_TARGET_PLATFORM:
             # Known as TAG_OS_PLATFORM in older versions; same encoding either way.
             comment = _value_to_flags(value, GuestPlatformType)
@@ -308,26 +350,17 @@ class SdbDatabase:
         # Which OS' tag table to resolve names against (None = newest); see
         # sdbtool.apphelp.tags.tag_id_to_string.
         self.target_os = target_os
-        self._handle = apphelp.SdbOpenDatabase(str(path), path_type)
+        self._handle = apphelp.SdbOpenDatabase(str(self.path), path_type)
         self._root = None
-        self._major: int | None = None
 
     @property
     def major(self) -> int | None:
-        """SDB header major version (2 or 3), read lazily from the file header.
+        """SDB header major version (2 or 3), or None if the database is not open.
 
-        None if the header cannot be read. The native apphelp handle does not
-        expose this, so it is parsed directly from the first bytes of the file.
+        Taken straight from the already-open reader handle, which validated the
+        version when parsing the header -- no extra filesystem I/O.
         """
-        if self._major is None:
-            try:
-                with open(self.path, "rb") as fp:
-                    header = fp.read(12)
-            except OSError:
-                header = b""
-            if len(header) >= 12 and header[8:12] == b"sdbf":
-                self._major = int.from_bytes(header[0:4], "little")
-        return self._major
+        return self._handle.major if self._handle is not None else None
 
     def root(self) -> Tag | None:
         if self._root is None and self._handle is not None:
