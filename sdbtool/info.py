@@ -18,8 +18,9 @@ _TAG_DATABASE = 0x7001
 _TAG_RUNTIME_PLATFORM = 0x4021
 _TAG_GUEST_TARGET_PLATFORM = 0x4023
 
-# How an amd64 host maps a GUEST_TARGET_PLATFORM bit (guest architecture) to a RUNTIME_PLATFORM bit (guest-on-host pair):
-# an x86 guest runs as X86_ON_AMD64 (0x4), an amd64 guest natively (0x2); IA64/ARM/ARM64 guests are unsupported.
+# Maps a GUEST_TARGET_PLATFORM bit to the RUNTIME_PLATFORM (guest-on-host) bit an amd64
+# host reports for it: x86 guest -> X86_ON_AMD64 (0x4), amd64 guest -> AMD64 (0x2).
+# IA64/ARM/ARM64 guests are unsupported.
 _GUEST_TO_AMD64_HOST = {0x1: 0x4, 0x4: 0x2}
 
 
@@ -38,10 +39,8 @@ class DatabaseInformation:
 def _runtime_platform(pdb: sdb_reader.SdbFile) -> int:
     """Reproduce the dwRuntimePlatform value reported by apphelp.dll on an amd64 host.
 
-    For a version-3 database with a RUNTIME_PLATFORM tag Windows reports that tag's value unmodified.
-    Otherwise (version-2 database, or tag absent) it reads GUEST_TARGET_PLATFORM - defaulting to 0x1,
-    an x86 guest - and maps each guest bit to the pair bit for the current host,
-    so an amd64 host reports e.g. guest 0x1 -> 4 (X86_ON_AMD64) and guest 0x4 -> 2 (AMD64).
+    A version-3 database with a RUNTIME_PLATFORM tag reports that tag's value unmodified.
+    Otherwise (version-2 database, or tag absent) GUEST_TARGET_PLATFORM is read, defaulting to 0x1 (x86 guest), and each guest bit is mapped to the host's pair bit, e.g. guest 0x1 -> 4 (X86_ON_AMD64) and guest 0x4 -> 2 (AMD64).
     """
     root = sdb_reader.SdbFindFirstTag(pdb, sdb_reader.TAGID_ROOT, _TAG_DATABASE)
     if root == sdb_reader.TAGID_NULL:

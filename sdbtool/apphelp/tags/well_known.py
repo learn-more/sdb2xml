@@ -4,10 +4,8 @@ LICENSE:     MIT (https://spdx.org/licenses/MIT)
 PURPOSE:     The handful of tags the dumper logic special-cases by identity.
 COPYRIGHT:   Copyright 2026 Mark Jansen <mark.jansen@reactos.org>
 
-These tag numbers are stable across every Windows version, so they are kept as
-hand-written constants -- independent of the generated, version-varying name
-tables in ``tags.json``. Code that needs to recognise a specific tag (to add a
-decoded comment, decide tree expansion, ...) uses these instead of string names.
+These tag numbers are stable across every Windows version, so they are kept as hand-written constants -- independent of the generated, version-varying name tables in ``tags.json``.
+Code that needs to recognise a specific tag (to add a decoded comment, decide tree expansion, ...) uses these instead of string names.
 """
 
 from enum import IntEnum

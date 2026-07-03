@@ -4,9 +4,8 @@ LICENSE:     MIT (https://spdx.org/licenses/MIT)
 PURPOSE:     Low-level interface for reading SDB files.
 COPYRIGHT:   Copyright 2025,2026 Mark Jansen <mark.jansen@reactos.org>
 
-This is a thin facade over the pure-Python SDB reader (sdb_reader.py). It keeps
-the historical apphelp-style function names used by the high-level interface,
-but no longer depends on the native apphelp.dll.
+This is a thin facade over the pure-Python SDB reader (sdb_reader.py).
+It keeps the historical apphelp-style function names used by the high-level interface.
 """
 
 from sdbtool.apphelp import sdb_reader
@@ -16,8 +15,7 @@ from sdbtool.apphelp.sdb_reader import SdbFile
 def SdbOpenDatabase(path: str, path_type: int = 0) -> SdbFile | None:
     """Open a database at the specified path.
 
-    ``path_type`` (DOS_PATH / NT_PATH) is accepted for API compatibility; the
-    file is always read directly through the filesystem.
+    ``path_type`` (DOS_PATH / NT_PATH) is accepted for API compatibility; the file is always read directly through the filesystem.
     """
     return sdb_reader.SdbOpenDatabase(path)
 

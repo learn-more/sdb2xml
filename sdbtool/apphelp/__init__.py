@@ -71,7 +71,8 @@ class RuntimePlatformType(IntFlag):
 class GuestPlatformType(IntFlag):
     """Bit vocabulary of the GUEST_TARGET_PLATFORM (0x4023) tag.
 
-    One bit per guest architecture. The same encoding is used across every Windows version (the tag was called OS_PLATFORM before Win10).
+    One bit per guest architecture.
+    The same encoding is used across every Windows version (the tag was called OS_PLATFORM before Win10).
     Every shipped x64 sysmain.sdb carries 0x4, x86 ones 0x1.
     """
 
@@ -106,8 +107,7 @@ def normalize_tag_name(name: str) -> str:
 def xml_tag_name(name: str) -> str:
     """Normalized name usable as an XML element name.
 
-    Like :func:`normalize_tag_name` but also guards a leading digit,
-    which is invalid for an XML Name (``16BIT_DESCRIPTION`` -> ``S16BIT_DESCRIPTION``, the form XP/2003 apphelp itself uses).
+    Like :func:`normalize_tag_name` but also guards a leading digit, which is invalid for an XML Name (``16BIT_DESCRIPTION`` -> ``S16BIT_DESCRIPTION``, the form XP/2003 apphelp itself uses).
     """
     name = normalize_tag_name(name)
     return "S" + name if name[:1].isdigit() else name
@@ -116,8 +116,7 @@ def xml_tag_name(name: str) -> str:
 def is_excluded(name: str, exclude_tags) -> bool:
     """Whether a tag ``name`` is excluded.
 
-    Matches the raw Windows name as well as its normalized (JSON) and XML-safe forms,
-    so ``--exclude MSI_TRANSFORM`` (the name seen in output) works even when the raw name for an older target is ``"MSI TRANSFORM"``.
+    Matches the raw Windows name as well as its normalized (JSON) and XML-safe forms, so ``--exclude MSI_TRANSFORM`` (the name seen in output) works even when the raw name for an older target is ``"MSI TRANSFORM"``.
 
     Unknown tags are named ``InvalidTag_0x….`` per tag id, so excluding the bare token ``"InvalidTag"`` matches every unknown tag by prefix.
     """
@@ -190,7 +189,7 @@ def tag_value_to_string(tag: "Tag") -> tuple[str, str | None]:
 
 
 def _filetime_to_string(filetime: int) -> str:
-    """Converts a Windows filetime (100-nanosecond intervals since 1601-01-01) to an ISO 8601 -ish string."""
+    """Convert a Windows filetime (100ns intervals since 1601-01-01) to an ISO-8601-ish string."""
     TICKSTO1970 = 0x019DB1DED53E8000
     TICKSPERSEC = 10_000_000
     timestamp = filetime - TICKSTO1970
