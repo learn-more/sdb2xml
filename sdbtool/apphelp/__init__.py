@@ -156,7 +156,10 @@ def tag_value_to_string(tag: "Tag") -> tuple[str, str | None]:
         comment = None
         if tag.tag in (Tags.INDEX_FLAGS,):
             comment = _value_to_flags(value, IndexFlags)
-        elif tag.tag == Tags.RUNTIME_PLATFORM:
+        elif tag.tag == Tags.RUNTIME_PLATFORM and tag.db.major == 3:
+            # Only version-3 (Win10+) databases encode 0x4021 as a (guest,host)
+            # architecture bitmask. In version-2 databases the per-EXE 0x4021 tag
+            # holds something else, so decoding it as arch flags is meaningless.
             comment = _value_to_flags(value, RuntimePlatformType)
         elif tag.tag == Tags.GUEST_TARGET_PLATFORM:
             # Known as TAG_OS_PLATFORM in older versions; same encoding either way.
@@ -307,6 +310,24 @@ class SdbDatabase:
         self.target_os = target_os
         self._handle = apphelp.SdbOpenDatabase(str(path), path_type)
         self._root = None
+        self._major: int | None = None
+
+    @property
+    def major(self) -> int | None:
+        """SDB header major version (2 or 3), read lazily from the file header.
+
+        None if the header cannot be read. The native apphelp handle does not
+        expose this, so it is parsed directly from the first bytes of the file.
+        """
+        if self._major is None:
+            try:
+                with open(self.path, "rb") as fp:
+                    header = fp.read(12)
+            except OSError:
+                header = b""
+            if len(header) >= 12 and header[8:12] == b"sdbf":
+                self._major = int.from_bytes(header[0:4], "little")
+        return self._major
 
     def root(self) -> Tag | None:
         if self._root is None and self._handle is not None:
