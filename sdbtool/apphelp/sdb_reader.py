@@ -4,9 +4,8 @@ LICENSE:     MIT (https://spdx.org/licenses/MIT)
 PURPOSE:     Pure-Python reader for SDB (shim database) files.
 COPYRIGHT:   Copyright 2026 Mark Jansen <mark.jansen@reactos.org>
 
-This is a pure-Python port of the SDB reading functions from the ReactOS
-apphelp module (sdbread.c / sdbapi.c), removing the dependency on the native
-apphelp.dll. The function names and semantics mirror the original Win32 API.
+This is a pure-Python port of the SDB reading functions from the ReactOS apphelp module (sdbread.c / sdbapi.c), removing the dependency on the native apphelp.dll.
+The function names and semantics mirror the original Win32 API.
 """
 
 from __future__ import annotations
@@ -44,8 +43,7 @@ _FIXED_SIZES = (0, 1, 2, 4, 8, 4)  # NULL, BYTE, WORD, DWORD, QWORD, STRINGREF
 class SdbFile:
     """An opened shim database, holding the raw bytes and cached metadata.
 
-    Instances are returned by :func:`SdbOpenDatabase` and act as the opaque
-    handle (``PDB``) that the rest of the reading API operates on.
+    Instances are returned by :func:`SdbOpenDatabase` and act as the opaque handle (``PDB``) that the rest of the reading API operates on.
     """
 
     def __init__(self, data: bytes, major: int, minor: int):
@@ -99,9 +97,8 @@ def SdbGetTagDataSize(pdb: SdbFile, tagid: int) -> int:
 def _sdbp_get_tag_size(pdb: SdbFile, tagid: int) -> int:
     """Total on-disk size of the tag at ``tagid`` (tag header + data).
 
-    Tag data is padded to a 2-byte (WORD) boundary on disk, so e.g. a BYTE tag
-    occupies a 2-byte data slot (the trailing pad byte is uninitialized). This
-    rounding is required to correctly walk databases written by apphelp.
+    Tag data is padded to a 2-byte (WORD) boundary on disk, so e.g. a BYTE tag occupies a 2-byte data slot (the trailing pad byte is uninitialized).
+    This rounding is required to correctly walk databases written by apphelp.
     """
     ttype = SdbGetTagFromTagID(pdb, tagid) & TAG_TYPE_MASK
     if ttype == TAG_NULL:

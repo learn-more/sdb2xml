@@ -56,13 +56,9 @@ DEFAULT_VERSION = KNOWN_VERSIONS[-1]
 def tag_id_to_string(tag: int, os_version: str | None = None) -> str:
     """Resolve ``tag`` to its name for a given target OS.
 
-    ``os_version`` is one of :data:`KNOWN_VERSIONS`; ``None`` selects the newest
-    table. If the tag is unknown for that OS, fall back to a *newer* version that
-    knows it (so a database carrying a tag added after the target still decodes) --
-    but never to an older one, so a tag that was removed before the target stays
-    unknown. Anything unresolved becomes ``InvalidTag_0xXXXX``, which keeps the raw
-    number visible in the output (and is a valid XML element name, unlike a
-    parenthesised form).
+    ``os_version`` is one of :data:`KNOWN_VERSIONS`; ``None`` selects the newest table.
+    If the tag is unknown for that OS, fall back to a *newer* version that knows it (so a database carrying a tag added after the target still decodes) -- but never to an older one, so a tag that was removed before the target stays unknown.
+    Anything unresolved becomes ``InvalidTag_0xXXXX``, which keeps the raw number visible in the output (and is a valid XML element name, unlike a parenthesised form).
     """
     if os_version is None or os_version not in _TABLES:
         os_version = DEFAULT_VERSION

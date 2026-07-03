@@ -4,10 +4,9 @@ LICENSE:     MIT (https://spdx.org/licenses/MIT)
 PURPOSE:     Pure-Python re-implementation of the apphelp file-attribute API.
 COPYRIGHT:   Copyright 2026 Mark Jansen <mark.jansen@reactos.org>
 
-Reproduces the attributes returned by the (Windows) apphelp.dll
-SdbGetFileAttributes / SdbFormatAttribute pair, removing the native dependency.
-Based on ReactOS' sdbfileattr.c plus the additional attributes and formatting
-that modern Windows apphelp.dll produces. PE parsing uses the pefile package.
+Reproduces the attributes returned by the (Windows) apphelp.dll SdbGetFileAttributes / SdbFormatAttribute pair, removing the native dependency.
+Based on ReactOS' sdbfileattr.c plus the additional attributes and formatting that modern Windows apphelp.dll produces.
+PE parsing uses the pefile package.
 """
 
 from __future__ import annotations
@@ -135,10 +134,8 @@ def _calculate_file_checksum(data: bytes) -> int:
 def _crc_checksum(data: bytes) -> int:
     """Port of apphelp's CRC_CHECKSUM: a zlib CRC-32 over a head+tail sample.
 
-    The file is sampled into a 0x2000-byte buffer: the first min(size, 0x2000)
-    bytes, with the upper half overwritten by the last 0x1000 bytes when the
-    file is larger than 0x2000. The CRC covers 0x1000 bytes for files up to
-    0x1000 bytes, otherwise 0x2000 bytes (zero-padded).
+    The file is sampled into a 0x2000-byte buffer: the first min(size, 0x2000) bytes, with the upper half overwritten by the last 0x1000 bytes when the file is larger than 0x2000.
+    The CRC covers 0x1000 bytes for files up to 0x1000 bytes, otherwise 0x2000 bytes (zero-padded).
     """
     size = len(data)
     if size == 0:

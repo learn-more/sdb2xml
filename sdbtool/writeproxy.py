@@ -11,16 +11,10 @@ from __future__ import annotations
 class WriteProxy:
     """Expose a concrete ``write`` attribute bound to ``stream.write``.
 
-    The JSON / XML serializers emit the output as a large number of small
-    fragments. When the destination is a Click ``LazyFile``, every ``.write``
-    lookup runs ``LazyFile.__getattr__`` (which also lazily opens the file),
-    so streaming straight to it pays that indirection per fragment and
-    dominates the runtime.
+    The JSON / XML serializers emit the output as a large number of small fragments.
+    When the destination is a Click ``LazyFile``, every ``.write`` lookup runs ``LazyFile.__getattr__`` (which also lazily opens the file), so streaming straight to it pays that indirection per fragment and dominates the runtime.
 
-    Resolving ``stream.write`` once (which opens a ``LazyFile`` a single time)
-    and handing the serializer this proxy keeps the output streaming - no need
-    to materialize the whole document in memory - while every subsequent write
-    hits a plain attribute with no ``__getattr__`` cost.
+    Resolving ``stream.write`` once (which opens a ``LazyFile`` a single time) and handing the serializer this proxy keeps the output streaming - no need to materialize the whole document in memory - while every subsequent write hits a plain attribute with no ``__getattr__`` cost.
     """
 
     __slots__ = ("write",)
