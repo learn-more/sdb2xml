@@ -4,14 +4,9 @@ LICENSE:     MIT (https://spdx.org/licenses/MIT)
 PURPOSE:     Version-aware SDB tag-name resolution.
 COPYRIGHT:   Copyright 2026 Mark Jansen <mark.jansen@reactos.org>
 
-The tag-id -> name tables are extracted offline from every ``apphelp.dll`` version
-by ``tools/generate_tags.py`` and vendored as ``tags.json`` (a ``base`` table plus
-per-version ``add`` / ``override`` / ``remove`` deltas). sdbtool therefore needs no
-dependency on apphelp at runtime.
+The tag-id -> name tables are extracted offline from every ``apphelp.dll`` version by shimextract's ``gen-tags`` step and vendored here as ``tags.json`` (a ``base`` table plus per-version ``add`` / ``override`` / ``remove`` deltas).
 
-Tag names change meaning between Windows versions (e.g. ``0x4022`` is ``OS_SKU`` on
-XP but unused on Win11; ``0x4023`` was ``OS_PLATFORM`` and is now
-``GUEST_TARGET_PLATFORM``), so resolution is parameterised by a target OS.
+Tag names change meaning between Windows versions (e.g. ``0x4022`` is ``OS_SKU`` on XP but unused on Win11; ``0x4023`` was ``OS_PLATFORM`` and is now ``GUEST_TARGET_PLATFORM``), so resolution is parameterised by a target OS.
 """
 
 from __future__ import annotations
